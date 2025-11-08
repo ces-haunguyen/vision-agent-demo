@@ -2,9 +2,10 @@
 
 Python implementations demonstrating real-time video streaming and AI-powered video agents using VisionAgents.ai, GetStream, and Gemini Live.
 
-This project includes **two implementations**:
+This project includes **three implementations**:
 1. **Flask Web App** - Browser-based video streaming interface ✅ **Working**
-2. **CLI Video Agent** - Reference implementation following the official VisionAgents example pattern 📖 **Documentation/Reference**
+2. **AI Interview System** - Automated AI-powered video interviews ✅ **NEW!**
+3. **CLI Video Agent** - Reference implementation following the official VisionAgents example pattern 📖 **Documentation/Reference**
 
 > **📝 Important Note about SDK Versions:**
 >
@@ -83,7 +84,87 @@ The server will start at `http://localhost:4000`
 4. Video stream will appear in the player
 5. View real-time statistics below the controls
 
-## 🤖 Implementation 2: CLI Video Agent (Reference)
+## 🎤 Implementation 2: AI Interview System (NEW!)
+
+An automated AI-powered interview system that conducts video interviews with candidates.
+
+### Features
+
+✅ **AI Interviewer**: Powered by Gemini Live AI
+✅ **Video Call**: Real-time video with WebRTC
+✅ **Voice Interaction**: AI speaks questions, listens to answers
+✅ **Live Transcript**: Real-time transcription of the interview
+✅ **Progress Tracking**: Visual progress indicators
+✅ **Automatic Flow**: Seamless question-to-question transitions
+✅ **Interview Summary**: Detailed analytics at completion
+
+### Quick Start
+
+```bash
+# Start the server
+uv run python app.py
+
+# Open in browser
+# Navigate to: http://localhost:4000/interview
+```
+
+### How It Works
+
+1. **User clicks "Start Interview"**
+   - Camera and microphone are activated
+   - AI interviewer joins the call
+   - First question is asked (both displayed and spoken)
+
+2. **AI asks questions sequentially**
+   - Questions are displayed on screen
+   - AI speaks the question using text-to-speech
+   - Speech recognition captures candidate's answer
+   - Automatic progression to next question
+
+3. **Live transcript is generated**
+   - All questions and answers are transcribed in real-time
+   - Timestamped entries for both AI and candidate
+   - Visible throughout the interview
+
+4. **User can end the call anytime**
+   - Click "End Interview" button
+   - Receive detailed summary with statistics
+   - Download transcript and analytics
+
+### Interview Questions
+
+The default interview includes 6 questions:
+1. Introduction and background
+2. Interest in the position
+3. Project experience
+4. Handling pressure
+5. Career goals
+6. Candidate questions
+
+### API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/interview` | GET | Interview UI |
+| `/api/interview/start` | POST | Start interview |
+| `/api/interview/<id>/answer` | POST | Submit answer |
+| `/api/interview/<id>/transcript` | GET | Get transcript |
+| `/api/interview/<id>/end` | POST | End interview |
+
+### Detailed Documentation
+
+For complete documentation, customization options, and API examples, see:
+**[AI_INTERVIEW_GUIDE.md](AI_INTERVIEW_GUIDE.md)**
+
+### Tech Stack
+
+- **AI**: Google Gemini Live (multimodal AI)
+- **Speech**: Web Speech API (recognition + synthesis)
+- **Video**: WebRTC + GetStream
+- **Backend**: Python + Flask + AsyncIO
+- **Frontend**: Vanilla JavaScript
+
+## 🤖 Implementation 3: CLI Video Agent (Reference)
 
 This section documents the VisionAgents CLI agent pattern from the official examples. The code files serve as reference implementation.
 
@@ -146,19 +227,24 @@ Edit `video-agent-instructions.md` to change the agent's behavior, personality, 
 
 ```
 python-app/
-├── app.py                              # Flask web server
+├── app.py                              # Flask web server with interview API
+├── ai_interview_agent.py               # AI Interview Agent (NEW!)
 ├── video_agent.py                      # CLI video agent (VisionAgents SDK)
+├── gemini_video_agent.py               # Gemini Live integration
 ├── video-agent-instructions.md         # Agent behavior instructions
 ├── templates/                          # HTML templates
-│   └── index.html                     # Main video streaming interface
+│   ├── index.html                     # Main video streaming interface
+│   └── interview.html                 # AI Interview interface (NEW!)
 ├── static/                            # Static assets
 │   ├── css/
 │   │   └── styles.css                # Application styles
 │   └── js/
-│       └── stream.js                 # WebRTC client logic
+│       ├── stream.js                 # WebRTC client logic
+│       └── interview.js              # AI Interview client (NEW!)
 ├── .env.example                       # Environment variables template
 ├── .gitignore                         # Git ignore rules
 ├── pyproject.toml                     # Python project configuration
+├── AI_INTERVIEW_GUIDE.md              # AI Interview documentation (NEW!)
 └── README.md                          # This file
 ```
 

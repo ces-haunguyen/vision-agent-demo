@@ -228,6 +228,12 @@ def index():
     return render_template('index.html')
 
 
+@app.route('/interview')
+def interview():
+    """Render the AI interview page"""
+    return render_template('interview.html')
+
+
 @app.route('/api/stream/init', methods=['POST'])
 def initialize_stream():
     """
@@ -388,6 +394,250 @@ def gemini_status():
         'configured': configured,
         'message': message
     })
+
+
+# AI Interview endpoints
+# Store active interview sessions (in production, use Redis or database)
+active_interviews = {}
+
+
+@app.route('/api/interview/start', methods=['POST'])
+def start_interview():
+    """
+    Start a new AI interview session
+
+    Request body:
+        {
+            "callId": "call_xxxxx",
+            "userId": "user_xxxxx"
+        }
+
+    Returns:
+        {
+            "success": true,
+            "callId": "call_xxxxx",
+            "firstQuestion": {...},
+            "totalQuestions": 6
+        }
+    """
+    try:
+        from ai_interview_agent import AIInterviewAgent
+        import asyncio
+
+        data = request.get_json()
+        call_id = data.get('callId')
+        user_id = data.get('userId')
+
+        if not call_id:
+            return jsonify({
+                'success': False,
+                'error': 'callId is required'
+            }), 400
+
+        # Create interview agent
+        agent = AIInterviewAgent(call_id=call_id)
+
+        # Initialize agent
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        init_success = loop.run_until_complete(agent.initialize())
+        if not init_success:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to initialize AI interviewer'
+            }), 500
+
+        # Start interview
+        result = loop.run_until_complete(agent.start_interview())
+        loop.close()
+
+        if result.get('success'):
+            # Store active interview session
+            active_interviews[call_id] = agent
+            return jsonify(result)
+        else:
+            return jsonify(result), 500
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/interview/<call_id>/answer', methods=['POST'])
+def submit_answer(call_id):
+    """
+    Submit an answer to the current interview question
+
+    Request body:
+        {
+            "answer": "The candidate's answer text"
+        }
+
+    Returns:
+        {
+            "success": true,
+            "answerRecorded": true,
+            "nextQuestion": {...} or null,
+            "interviewComplete": false
+        }
+    """
+    try:
+        import asyncio
+
+        data = request.get_json()
+        answer_text = data.get('answer')
+
+        if not answer_text:
+            return jsonify({
+                'success': False,
+                'error': 'answer is required'
+            }), 400
+
+        # Get active interview
+        agent = active_interviews.get(call_id)
+        if not agent:
+            return jsonify({
+                'success': False,
+                'error': 'Interview session not found'
+            }), 404
+
+        # Process answer
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(agent.process_answer(answer_text))
+        loop.close()
+
+        return jsonify(result)
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/interview/<call_id>/transcript', methods=['GET'])
+def get_interview_transcript(call_id):
+    """
+    Get the current interview transcript
+
+    Returns:
+        {
+            "success": true,
+            "callId": "call_xxxxx",
+            "transcript": [
+                {
+                    "speaker": "AI Interviewer",
+                    "text": "Hello! Can you tell me about yourself?",
+                    "timestamp": "2024-01-01T12:00:00"
+                },
+                ...
+            ]
+        }
+    """
+    try:
+        agent = active_interviews.get(call_id)
+        if not agent:
+            return jsonify({
+                'success': False,
+                'error': 'Interview session not found'
+            }), 404
+
+        transcript = agent.get_transcript()
+
+        return jsonify({
+            'success': True,
+            'callId': call_id,
+            'transcript': transcript
+        })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/interview/<call_id>/end', methods=['POST'])
+def end_interview(call_id):
+    """
+    End the interview session
+
+    Returns:
+        {
+            "success": true,
+            "endedAt": "2024-01-01T12:30:00",
+            "durationSeconds": 1800,
+            "transcript": [...],
+            "summary": {...}
+        }
+    """
+    try:
+        import asyncio
+
+        agent = active_interviews.get(call_id)
+        if not agent:
+            return jsonify({
+                'success': False,
+                'error': 'Interview session not found'
+            }), 404
+
+        # End interview
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(agent.end_interview())
+        loop.close()
+
+        # Remove from active sessions
+        if call_id in active_interviews:
+            del active_interviews[call_id]
+
+        return jsonify(result)
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/interview/<call_id>/status', methods=['GET'])
+def get_interview_status(call_id):
+    """
+    Get current interview status
+
+    Returns:
+        {
+            "success": true,
+            "isActive": true,
+            "callId": "call_xxxxx",
+            "currentQuestion": 2,
+            "totalQuestions": 6
+        }
+    """
+    try:
+        agent = active_interviews.get(call_id)
+        if not agent:
+            return jsonify({
+                'success': False,
+                'error': 'Interview session not found'
+            }), 404
+
+        status = agent.get_status()
+
+        return jsonify({
+            'success': True,
+            **status
+        })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 
 # Error handlers
