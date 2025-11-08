@@ -316,8 +316,169 @@ class VideoStreamClient {
 }
 
 // Initialize the client when the page loads
-let streamClient;
-
 document.addEventListener('DOMContentLoaded', () => {
-    streamClient = new VideoStreamClient();
+    window.streamClient = new VideoStreamClient();
+});
+
+/**
+ * Gemini AI Integration
+ * Handles video frame analysis using Gemini Vision API
+ */
+
+class GeminiClient {
+    constructor(videoStreamClient) {
+        this.videoClient = videoStreamClient;
+        this.geminiAvailable = false;
+
+        // DOM elements
+        this.geminiContainer = document.getElementById('geminiContainer');
+        this.analyzeBtn = document.getElementById('analyzeBtn');
+        this.geminiStatus = document.getElementById('geminiStatus');
+        this.geminiResponse = document.getElementById('geminiResponse');
+
+        // Bind events
+        this.bindEvents();
+
+        // Check Gemini status
+        this.checkGeminiStatus();
+    }
+
+    bindEvents() {
+        if (this.analyzeBtn) {
+            this.analyzeBtn.addEventListener('click', () => this.analyzeCurrentFrame());
+        }
+    }
+
+    async checkGeminiStatus() {
+        try {
+            const response = await fetch('/api/gemini/status');
+            const data = await response.json();
+
+            this.geminiAvailable = data.available;
+
+            if (data.available) {
+                this.geminiStatus.textContent = '✅ ' + data.message;
+                this.geminiStatus.className = 'gemini-status ready';
+            } else {
+                this.geminiStatus.textContent = '⚠️ ' + data.message;
+                this.geminiStatus.className = 'gemini-status error';
+                this.analyzeBtn.disabled = true;
+            }
+        } catch (error) {
+            console.error('Error checking Gemini status:', error);
+            this.geminiStatus.textContent = '❌ Could not connect to Gemini service';
+            this.geminiStatus.className = 'gemini-status error';
+        }
+    }
+
+    showGeminiContainer() {
+        if (this.geminiContainer) {
+            this.geminiContainer.style.display = 'block';
+        }
+    }
+
+    hideGeminiContainer() {
+        if (this.geminiContainer) {
+            this.geminiContainer.style.display = 'none';
+        }
+    }
+
+    captureFrame() {
+        // Create canvas to capture video frame
+        const canvas = document.createElement('canvas');
+        const video = this.videoClient.videoPlayer;
+
+        canvas.width = video.videoWidth || 640;
+        canvas.height = video.videoHeight || 480;
+
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        // Convert to base64
+        return canvas.toDataURL('image/jpeg', 0.8);
+    }
+
+    async analyzeCurrentFrame() {
+        if (!this.geminiAvailable) {
+            alert('Gemini AI is not configured. Please add GOOGLE_API_KEY to your .env file.');
+            return;
+        }
+
+        // Check if video is playing
+        if (this.videoClient.status !== 'playing') {
+            alert('Please start the video stream first!');
+            return;
+        }
+
+        try {
+            // Disable button and show loading
+            this.analyzeBtn.disabled = true;
+            this.analyzeBtn.textContent = 'Analyzing...';
+            this.geminiResponse.innerHTML = '<p class="loading">🤖 Gemini is analyzing the video frame...</p>';
+            this.geminiResponse.className = 'gemini-response loading';
+
+            // Capture current frame
+            const frameData = this.captureFrame();
+
+            // Send to Gemini
+            const response = await fetch('/api/gemini/analyze', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    imageData: frameData,
+                    prompt: 'Describe what you see in this video frame in detail. Mention objects, people, colors, and any activities happening.'
+                })
+            });
+
+            const data = await response.json();
+
+            // Display result
+            if (data.success) {
+                this.geminiResponse.innerHTML = `<p class="analysis-text">${data.analysis}</p>`;
+                this.geminiResponse.className = 'gemini-response';
+            } else {
+                this.geminiResponse.innerHTML = `<p style="color: var(--danger-color);">❌ Error: ${data.error}</p>`;
+                this.geminiResponse.className = 'gemini-response';
+            }
+
+        } catch (error) {
+            console.error('Error analyzing frame:', error);
+            this.geminiResponse.innerHTML = `<p style="color: var(--danger-color);">❌ Failed to analyze frame: ${error.message}</p>`;
+            this.geminiResponse.className = 'gemini-response';
+        } finally {
+            // Re-enable button
+            this.analyzeBtn.disabled = false;
+            this.analyzeBtn.textContent = 'Analyze Frame';
+        }
+    }
+}
+
+// Initialize Gemini client when stream client is ready
+document.addEventListener('DOMContentLoaded', () => {
+    // Wait for streamClient to be initialized
+    setTimeout(() => {
+        if (window.streamClient) {
+            window.geminiClient = new GeminiClient(window.streamClient);
+
+            // Show Gemini container when stream starts
+            const originalHandlePlay = window.streamClient.handlePlay.bind(window.streamClient);
+            window.streamClient.handlePlay = async function() {
+                await originalHandlePlay();
+                if (window.geminiClient) {
+                    window.geminiClient.showGeminiContainer();
+                }
+            };
+
+            // Hide Gemini container when stream stops
+            const originalHandleStop = window.streamClient.handleStop.bind(window.streamClient);
+            window.streamClient.handleStop = function() {
+                originalHandleStop();
+                if (window.geminiClient) {
+                    window.geminiClient.hideGeminiContainer();
+                }
+            };
+        }
+    }, 100);
 });

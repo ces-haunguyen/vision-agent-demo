@@ -71,7 +71,7 @@ async def run_example():
     logger.info("3. Run this script with the required environment variables")
     logger.info("")
     logger.info("For a working example with the current release:")
-    logger.info("   uv run python app.py  # Runs Flask web server on http://localhost:5000")
+    logger.info("   uv run python app.py  # Runs Flask web server on http://localhost:4000")
     logger.info("")
 
 

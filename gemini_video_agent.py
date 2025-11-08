@@ -167,7 +167,7 @@ class GeminiVideoAgent:
         logger.info("   3. Or install VisionAgents development version for full CLI agent")
         logger.info("")
         logger.info("🌐 Quick Start: uv run python app.py")
-        logger.info("   Then open http://localhost:5000 in your browser")
+        logger.info("   Then open http://localhost:4000 in your browser")
         logger.info("")
 
         return True

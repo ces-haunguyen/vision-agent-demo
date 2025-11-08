@@ -34,7 +34,7 @@ GOOGLE_API_KEY=your_gemini_key_here
 uv run python app.py
 ```
 
-Open http://localhost:5000 in your browser.
+Open http://localhost:4000 in your browser.
 
 ### What This Does
 
@@ -269,7 +269,7 @@ python-app/
 ### For Web App:
 ```bash
 uv run python app.py
-# Open http://localhost:5000
+# Open http://localhost:4000
 ```
 
 ### For CLI Agent (with dev version):

@@ -2,12 +2,13 @@
 VisionAgents.ai Video Streaming Demo - Python Flask Backend
 
 This application demonstrates real-time video streaming integration with VisionAgents.ai
-using Python Flask as the backend server with GetStream.
+using Python Flask as the backend server with GetStream and Gemini Live AI.
 """
 
 import os
 import uuid
 import time
+import base64
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify
 from dotenv import load_dotenv
@@ -21,6 +22,14 @@ except ImportError:
     print("Warning: GetStream SDK not available. Using mock implementation.")
     STREAM_AVAILABLE = False
 
+# Import Google Gemini SDK (using new google-genai package)
+try:
+    from google import genai
+    GEMINI_AVAILABLE = True
+except ImportError:
+    print("Warning: Google Gemini SDK not available. Already included with vision-agents-plugins-gemini")
+    GEMINI_AVAILABLE = False
+
 # Load environment variables
 load_dotenv()
 
@@ -29,6 +38,7 @@ app = Flask(__name__)
 # Configuration
 STREAM_API_KEY = os.getenv('STREAM_API_KEY', '')
 STREAM_API_SECRET = os.getenv('STREAM_API_SECRET', '')
+GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY', '')
 
 
 class VisionAgentClient:
@@ -124,6 +134,78 @@ class VisionAgentClient:
                 ]
             }
         }
+
+
+class GeminiClient:
+    """Client for Gemini AI vision and text analysis"""
+
+    def __init__(self, api_key):
+        self.api_key = api_key
+        self.client = None
+
+        # Initialize Gemini if API key is available
+        if GEMINI_AVAILABLE and api_key:
+            try:
+                # Initialize the new SDK client
+                self.client = genai.Client(api_key=api_key)
+                self.using_gemini = True
+                print(f"✓ Connected to Google Gemini")
+            except Exception as e:
+                print(f"Warning: Could not initialize Gemini: {e}")
+                self.using_gemini = False
+        else:
+            self.using_gemini = False
+            if not api_key:
+                print("ℹ Gemini not configured (no API key provided)")
+
+    def analyze_frame(self, image_data_base64, prompt="Describe what you see in this image"):
+        """
+        Analyze a video frame using Gemini Vision
+
+        Args:
+            image_data_base64: Base64 encoded image data
+            prompt: Text prompt for the AI
+
+        Returns:
+            dict: Analysis result with text response
+        """
+        if not self.using_gemini:
+            return {
+                'success': False,
+                'error': 'Gemini not available. Add GOOGLE_API_KEY to .env file.'
+            }
+
+        try:
+            # Decode base64 image
+            image_bytes = base64.b64decode(image_data_base64.split(',')[1] if ',' in image_data_base64 else image_data_base64)
+
+            # Prepare image part using new SDK format
+            from google.genai import types
+
+            # Create the image part
+            image_part = types.Part.from_bytes(
+                data=image_bytes,
+                mime_type="image/jpeg"
+            )
+
+            # Generate content with Gemini using new SDK
+            # Using gemini-2.5-flash for best performance and stability
+            response = self.client.models.generate_content(
+                model='gemini-2.5-flash',
+                contents=[prompt, image_part]
+            )
+
+            return {
+                'success': True,
+                'analysis': response.text,
+                'using_gemini': True
+            }
+
+        except Exception as e:
+            return {
+                'success': False,
+                'error': f'Gemini analysis failed: {str(e)}'
+            }
 
 
 # Helper functions
@@ -236,6 +318,78 @@ def new_session():
     })
 
 
+@app.route('/api/gemini/analyze', methods=['POST'])
+def analyze_with_gemini():
+    """
+    Analyze a video frame using Gemini Vision AI
+
+    Request body:
+        {
+            "imageData": "data:image/jpeg;base64,...",
+            "prompt": "What do you see?" (optional)
+        }
+
+    Returns:
+        {
+            "success": true,
+            "analysis": "AI description of the image",
+            "using_gemini": true
+        }
+    """
+    try:
+        data = request.get_json()
+        image_data = data.get('imageData')
+        prompt = data.get('prompt', 'Describe what you see in this video frame in detail.')
+
+        if not image_data:
+            return jsonify({
+                'success': False,
+                'error': 'No image data provided'
+            }), 400
+
+        # Initialize Gemini client
+        gemini = GeminiClient(GOOGLE_API_KEY)
+
+        # Analyze the frame
+        result = gemini.analyze_frame(image_data, prompt)
+
+        return jsonify(result)
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/gemini/status', methods=['GET'])
+def gemini_status():
+    """
+    Check if Gemini is configured and available
+
+    Returns:
+        {
+            "available": true/false,
+            "configured": true/false,
+            "message": "Status message"
+        }
+    """
+    configured = bool(GOOGLE_API_KEY)
+    available = GEMINI_AVAILABLE and configured
+
+    message = "Gemini is ready"
+    if not GEMINI_AVAILABLE:
+        message = "Gemini SDK not available (google-genai should be installed via vision-agents-plugins-gemini)"
+    elif not configured:
+        message = "Gemini not configured. Add GOOGLE_API_KEY to .env file"
+
+    return jsonify({
+        'available': available,
+        'configured': configured,
+        'message': message
+    })
+
+
 # Error handlers
 @app.errorhandler(404)
 def not_found(e):
@@ -252,6 +406,6 @@ if __name__ == '__main__':
     # In production, use a WSGI server like gunicorn or uwsgi
     app.run(
         host='0.0.0.0',
-        port=5000,
+        port=4000,
         debug=True
     )
