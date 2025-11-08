@@ -74,6 +74,38 @@
                         <p class="placeholder">Click "Analyze Frame" to see what Gemini AI sees in your video</p>
                     </div>
                 </div>
+
+                <!-- AI Interview Section -->
+                <div class="interview-section">
+                    <div class="interview-controls">
+                        <div class="interview-header">
+                            <h3>🎤 AI Mock Interview</h3>
+                            <div id="listeningIndicator" class="listening-indicator" style="display: none;">
+                                <span class="pulse-dot"></span>
+                                <span>Listening...</span>
+                            </div>
+                        </div>
+                        <div class="interview-settings">
+                            <label for="interviewTypeSelect">Interview Type:</label>
+                            <select id="interviewTypeSelect" class="interview-select">
+                                <option value="general">General Interview</option>
+                                <option value="technical">Technical Interview</option>
+                                <option value="behavioral">Behavioral Interview</option>
+                            </select>
+                            <button id="startInterviewBtn" class="btn btn-interview">
+                                Start AI Interview
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Live Transcript -->
+                    <div id="interviewContainer" class="interview-transcript-container" style="display: none;">
+                        <h4>Interview Transcript</h4>
+                        <div id="transcriptContainer" class="transcript-content">
+                            <!-- Transcript messages will be added here dynamically -->
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Session Information Sidebar -->
@@ -103,7 +135,9 @@
                         <li>✅ Live statistics</li>
                         <li>✅ Auto-reconnection</li>
                         <li>✅ Python + Flask backend</li>
-                        <li>🤖 Gemini AI Vision (NEW!)</li>
+                        <li>🤖 Gemini AI Vision</li>
+                        <li>🎤 AI Mock Interview (NEW!)</li>
+                        <li>💬 Live Transcription (NEW!)</li>
                     </ul>
                 </div>
 

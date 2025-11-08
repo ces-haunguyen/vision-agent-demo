@@ -449,3 +449,248 @@ footer a:hover {
         width: 100%;
     }
 }
+
+/* AI Interview Section */
+.interview-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-top: 1.5rem;
+}
+
+.interview-controls {
+    margin-bottom: 1.5rem;
+}
+
+.interview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.interview-header h3 {
+    margin: 0;
+    font-size: 1.25rem;
+}
+
+.listening-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: rgba(220, 53, 69, 0.1);
+    border: 1px solid var(--danger-color);
+    border-radius: 20px;
+    font-size: 0.875rem;
+    color: var(--danger-color);
+    animation: pulse 2s ease-in-out infinite;
+}
+
+.pulse-dot {
+    width: 8px;
+    height: 8px;
+    background: var(--danger-color);
+    border-radius: 50%;
+    animation: pulse-dot 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}
+
+@keyframes pulse-dot {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.3);
+        opacity: 0.6;
+    }
+}
+
+.interview-settings {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.interview-settings label {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+.interview-select {
+    padding: 0.5rem 1rem;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.interview-select:hover {
+    border-color: var(--primary-color);
+}
+
+.interview-select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(0, 112, 243, 0.1);
+}
+
+.btn-interview {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+    padding: 0.5rem 1.5rem;
+    font-size: 0.875rem;
+    transition: all 0.3s;
+}
+
+.btn-interview:hover:not(:disabled) {
+    background: linear-gradient(135deg, #e082ea 0%, #e4465b 100%);
+}
+
+.btn-interview.active {
+    background: linear-gradient(135deg, #ff6b6b 0%, #c92a2a 100%);
+    animation: pulse 2s ease-in-out infinite;
+}
+
+/* Interview Transcript */
+.interview-transcript-container {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 1rem;
+}
+
+.interview-transcript-container h4 {
+    margin: 0 0 1rem 0;
+    font-size: 1rem;
+    color: var(--text-secondary);
+}
+
+.transcript-content {
+    max-height: 400px;
+    overflow-y: auto;
+    padding-right: 0.5rem;
+}
+
+/* Custom scrollbar for transcript */
+.transcript-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.transcript-content::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+}
+
+.transcript-content::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 3px;
+}
+
+.transcript-content::-webkit-scrollbar-thumb:hover {
+    background: var(--text-secondary);
+}
+
+.transcript-message {
+    margin-bottom: 1rem;
+    padding: 1rem;
+    border-radius: 8px;
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.transcript-ai {
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+    border-left: 3px solid #667eea;
+}
+
+.transcript-user {
+    background: linear-gradient(135deg, rgba(0, 112, 243, 0.1) 0%, rgba(0, 212, 255, 0.1) 100%);
+    border-left: 3px solid var(--primary-color);
+}
+
+.transcript-system {
+    background: rgba(255, 193, 7, 0.1);
+    border-left: 3px solid #ffc107;
+}
+
+.transcript-interim {
+    background: rgba(108, 117, 125, 0.1);
+    border-left: 3px solid var(--secondary-color);
+}
+
+.message-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.5rem;
+    opacity: 0.8;
+}
+
+.transcript-ai .message-label {
+    color: #667eea;
+}
+
+.transcript-user .message-label {
+    color: var(--primary-color);
+}
+
+.transcript-system .message-label {
+    color: #ffc107;
+}
+
+.message-content {
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: var(--text-primary);
+}
+
+/* Responsive adjustments for interview section */
+@media (max-width: 768px) {
+    .interview-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    .interview-settings {
+        flex-direction: column;
+        width: 100%;
+        align-items: stretch;
+    }
+
+    .interview-select,
+    .btn-interview {
+        width: 100%;
+    }
+
+    .listening-indicator {
+        align-self: flex-start;
+    }
+}

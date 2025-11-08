@@ -192,7 +192,7 @@ class VideoStreamClient {
         // 3. Handle ICE candidates
         // 4. Connect to Stream's edge network
 
-        // For demo purposes, we'll use getUserMedia to simulate incoming stream
+        // For demo purposes, we'll use getUserMedia to capture both video and audio
         try {
             this.mediaStream = await navigator.mediaDevices.getUserMedia({
                 video: {
@@ -200,13 +200,13 @@ class VideoStreamClient {
                     height: { ideal: 720 },
                     frameRate: { ideal: 30 }
                 },
-                audio: false
+                audio: true  // Enable audio capture for interview
             });
 
-            console.log('Media stream acquired');
+            console.log('Media stream acquired (video + audio)');
         } catch (error) {
             console.error('Failed to get user media:', error);
-            throw new Error('Camera access denied or not available');
+            throw new Error('Camera/microphone access denied or not available');
         }
     }
 
@@ -455,12 +455,340 @@ class GeminiClient {
     }
 }
 
+/**
+ * AI Interview Client
+ * Handles interview flow, speech recognition, and AI conversation
+ */
+
+class InterviewClient {
+    constructor(videoStreamClient) {
+        this.videoClient = videoStreamClient;
+        this.recognition = null;
+        this.isListening = false;
+        this.interviewActive = false;
+        this.sessionId = null;
+        this.interviewType = 'general';
+        this.currentTranscript = '';
+        this.silenceTimer = null;
+
+        // DOM elements
+        this.interviewContainer = document.getElementById('interviewContainer');
+        this.startInterviewBtn = document.getElementById('startInterviewBtn');
+        this.interviewTypeSelect = document.getElementById('interviewTypeSelect');
+        this.transcriptContainer = document.getElementById('transcriptContainer');
+        this.listeningIndicator = document.getElementById('listeningIndicator');
+
+        // Initialize Speech Recognition
+        this.initializeSpeechRecognition();
+
+        // Bind events
+        this.bindEvents();
+    }
+
+    initializeSpeechRecognition() {
+        // Check if browser supports Web Speech API
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+        if (!SpeechRecognition) {
+            console.error('Speech Recognition not supported in this browser');
+            if (this.startInterviewBtn) {
+                this.startInterviewBtn.disabled = true;
+                this.startInterviewBtn.textContent = 'Speech Recognition Not Supported';
+            }
+            return;
+        }
+
+        this.recognition = new SpeechRecognition();
+        this.recognition.continuous = true;
+        this.recognition.interimResults = true;
+        this.recognition.lang = 'en-US';
+
+        this.recognition.onstart = () => {
+            console.log('Speech recognition started');
+            this.isListening = true;
+            this.showListeningIndicator();
+        };
+
+        this.recognition.onresult = (event) => {
+            let interimTranscript = '';
+            let finalTranscript = '';
+
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                const transcript = event.results[i][0].transcript;
+                if (event.results[i].isFinal) {
+                    finalTranscript += transcript + ' ';
+                } else {
+                    interimTranscript += transcript;
+                }
+            }
+
+            // Update current transcript
+            if (finalTranscript) {
+                this.currentTranscript += finalTranscript;
+                console.log('Final transcript:', finalTranscript);
+
+                // Reset silence timer - user is speaking
+                this.resetSilenceTimer();
+
+                // Start timer to detect when user stops speaking
+                this.startSilenceTimer();
+            }
+
+            // Show interim results
+            if (interimTranscript) {
+                this.updateInterimTranscript(interimTranscript);
+            }
+        };
+
+        this.recognition.onerror = (event) => {
+            console.error('Speech recognition error:', event.error);
+            if (event.error === 'no-speech') {
+                // Restart recognition if no speech detected
+                if (this.interviewActive) {
+                    this.recognition.start();
+                }
+            }
+        };
+
+        this.recognition.onend = () => {
+            console.log('Speech recognition ended');
+            this.isListening = false;
+            this.hideListeningIndicator();
+
+            // Restart if interview is still active
+            if (this.interviewActive) {
+                this.recognition.start();
+            }
+        };
+    }
+
+    bindEvents() {
+        if (this.startInterviewBtn) {
+            this.startInterviewBtn.addEventListener('click', () => this.toggleInterview());
+        }
+    }
+
+    async toggleInterview() {
+        if (this.interviewActive) {
+            this.stopInterview();
+        } else {
+            await this.startInterview();
+        }
+    }
+
+    async startInterview() {
+        // Check if video stream is active
+        if (this.videoClient.status !== 'playing') {
+            alert('Please start the video stream first!');
+            return;
+        }
+
+        this.interviewActive = true;
+        this.sessionId = this.videoClient.callId;
+        this.interviewType = this.interviewTypeSelect.value;
+
+        // Update UI
+        this.startInterviewBtn.textContent = 'Stop Interview';
+        this.startInterviewBtn.classList.add('active');
+        this.showInterviewContainer();
+
+        // Clear transcript
+        this.transcriptContainer.innerHTML = '';
+        this.currentTranscript = '';
+
+        try {
+            // Start interview on backend
+            const response = await fetch('/api/interview/start', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    sessionId: this.sessionId,
+                    interviewType: this.interviewType
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                // Display first question
+                this.addMessageToTranscript('ai', data.firstQuestion);
+
+                // Start speech recognition
+                if (this.recognition) {
+                    this.recognition.start();
+                }
+            } else {
+                alert('Failed to start interview: ' + data.error);
+                this.stopInterview();
+            }
+
+        } catch (error) {
+            console.error('Error starting interview:', error);
+            alert('Failed to start interview');
+            this.stopInterview();
+        }
+    }
+
+    stopInterview() {
+        this.interviewActive = false;
+
+        // Stop speech recognition
+        if (this.recognition && this.isListening) {
+            this.recognition.stop();
+        }
+
+        // Clear timers
+        this.resetSilenceTimer();
+
+        // Update UI
+        this.startInterviewBtn.textContent = 'Start AI Interview';
+        this.startInterviewBtn.classList.remove('active');
+        this.hideListeningIndicator();
+
+        console.log('Interview stopped');
+    }
+
+    startSilenceTimer() {
+        // After 2 seconds of silence, send the transcript to AI
+        this.silenceTimer = setTimeout(() => {
+            this.processUserResponse();
+        }, 2000);
+    }
+
+    resetSilenceTimer() {
+        if (this.silenceTimer) {
+            clearTimeout(this.silenceTimer);
+            this.silenceTimer = null;
+        }
+    }
+
+    async processUserResponse() {
+        if (!this.currentTranscript.trim()) {
+            return;
+        }
+
+        const userResponse = this.currentTranscript.trim();
+        this.currentTranscript = '';
+
+        // Add user's response to transcript
+        this.addMessageToTranscript('user', userResponse);
+
+        // Clear interim display
+        this.updateInterimTranscript('');
+
+        try {
+            // Send to backend for AI response
+            const response = await fetch('/api/interview/respond', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    sessionId: this.sessionId,
+                    userResponse: userResponse
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                // Add AI's response to transcript
+                this.addMessageToTranscript('ai', data.response);
+            } else {
+                console.error('AI response error:', data.error);
+                this.addMessageToTranscript('system', 'Error: ' + data.error);
+            }
+
+        } catch (error) {
+            console.error('Error getting AI response:', error);
+            this.addMessageToTranscript('system', 'Error connecting to AI');
+        }
+    }
+
+    addMessageToTranscript(role, message) {
+        const messageEl = document.createElement('div');
+        messageEl.className = `transcript-message transcript-${role}`;
+
+        const labelEl = document.createElement('div');
+        labelEl.className = 'message-label';
+        labelEl.textContent = role === 'ai' ? '🤖 AI Interviewer' : role === 'user' ? '👤 You' : 'ℹ️ System';
+
+        const contentEl = document.createElement('div');
+        contentEl.className = 'message-content';
+        contentEl.textContent = message;
+
+        messageEl.appendChild(labelEl);
+        messageEl.appendChild(contentEl);
+
+        this.transcriptContainer.appendChild(messageEl);
+
+        // Scroll to bottom
+        this.transcriptContainer.scrollTop = this.transcriptContainer.scrollHeight;
+    }
+
+    updateInterimTranscript(text) {
+        // Remove previous interim element
+        const existingInterim = this.transcriptContainer.querySelector('.transcript-interim');
+        if (existingInterim) {
+            existingInterim.remove();
+        }
+
+        if (text.trim()) {
+            const interimEl = document.createElement('div');
+            interimEl.className = 'transcript-message transcript-interim';
+
+            const labelEl = document.createElement('div');
+            labelEl.className = 'message-label';
+            labelEl.textContent = '👤 You (speaking...)';
+
+            const contentEl = document.createElement('div');
+            contentEl.className = 'message-content';
+            contentEl.textContent = text;
+            contentEl.style.opacity = '0.6';
+            contentEl.style.fontStyle = 'italic';
+
+            interimEl.appendChild(labelEl);
+            interimEl.appendChild(contentEl);
+
+            this.transcriptContainer.appendChild(interimEl);
+            this.transcriptContainer.scrollTop = this.transcriptContainer.scrollHeight;
+        }
+    }
+
+    showListeningIndicator() {
+        if (this.listeningIndicator) {
+            this.listeningIndicator.style.display = 'flex';
+        }
+    }
+
+    hideListeningIndicator() {
+        if (this.listeningIndicator) {
+            this.listeningIndicator.style.display = 'none';
+        }
+    }
+
+    showInterviewContainer() {
+        if (this.interviewContainer) {
+            this.interviewContainer.style.display = 'block';
+        }
+    }
+
+    hideInterviewContainer() {
+        if (this.interviewContainer) {
+            this.interviewContainer.style.display = 'none';
+        }
+    }
+}
+
 // Initialize Gemini client when stream client is ready
 document.addEventListener('DOMContentLoaded', () => {
     // Wait for streamClient to be initialized
     setTimeout(() => {
         if (window.streamClient) {
             window.geminiClient = new GeminiClient(window.streamClient);
+            window.interviewClient = new InterviewClient(window.streamClient);
 
             // Show Gemini container when stream starts
             const originalHandlePlay = window.streamClient.handlePlay.bind(window.streamClient);
@@ -471,12 +799,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             };
 
-            // Hide Gemini container when stream stops
+            // Hide Gemini container and stop interview when stream stops
             const originalHandleStop = window.streamClient.handleStop.bind(window.streamClient);
             window.streamClient.handleStop = function() {
                 originalHandleStop();
                 if (window.geminiClient) {
                     window.geminiClient.hideGeminiContainer();
+                }
+                if (window.interviewClient && window.interviewClient.interviewActive) {
+                    window.interviewClient.stopInterview();
                 }
             };
         }

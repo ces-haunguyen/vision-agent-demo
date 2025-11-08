@@ -136,6 +136,132 @@ class VisionAgentClient:
         }
 
 
+class InterviewManager:
+    """Manages AI interview sessions and conversation flow"""
+
+    def __init__(self, gemini_client):
+        self.gemini_client = gemini_client
+        self.sessions = {}  # Store interview sessions by session_id
+
+    def start_interview(self, session_id, interview_type="general"):
+        """Start a new interview session"""
+
+        # Interview prompts based on type
+        interview_prompts = {
+            "general": {
+                "system_prompt": """You are an experienced and friendly job interviewer. Your role is to:
+1. Ask thoughtful interview questions one at a time
+2. Listen to the candidate's responses
+3. Ask relevant follow-up questions based on their answers
+4. Be encouraging and professional
+5. Keep questions concise and clear
+
+Start by introducing yourself and asking the first question.""",
+                "first_question": "Hello! I'm your AI interviewer today. Let's start with a simple question: Can you tell me a bit about yourself and your background?"
+            },
+            "technical": {
+                "system_prompt": """You are a technical interviewer specializing in software engineering. Your role is to:
+1. Ask technical questions about programming, algorithms, and system design
+2. Evaluate the candidate's problem-solving approach
+3. Ask follow-up questions to understand their thought process
+4. Be supportive while maintaining technical rigor
+
+Start by introducing yourself and asking the first technical question.""",
+                "first_question": "Hello! I'm your technical interviewer. Let's begin: Can you explain the difference between a process and a thread, and when you would use one over the other?"
+            },
+            "behavioral": {
+                "system_prompt": """You are a behavioral interviewer. Your role is to:
+1. Ask behavioral questions using the STAR method (Situation, Task, Action, Result)
+2. Help candidates tell their stories effectively
+3. Ask probing questions to understand their experiences
+4. Be empathetic and encouraging
+
+Start by introducing yourself and asking the first behavioral question.""",
+                "first_question": "Hello! I'm here to learn about your experiences. Let's start: Can you tell me about a time when you faced a significant challenge at work and how you handled it?"
+            }
+        }
+
+        prompt_data = interview_prompts.get(interview_type, interview_prompts["general"])
+
+        self.sessions[session_id] = {
+            "type": interview_type,
+            "system_prompt": prompt_data["system_prompt"],
+            "conversation_history": [],
+            "current_question": prompt_data["first_question"],
+            "question_count": 0,
+            "started_at": datetime.now().isoformat()
+        }
+
+        return {
+            "session_id": session_id,
+            "first_question": prompt_data["first_question"],
+            "interview_type": interview_type
+        }
+
+    def get_next_response(self, session_id, user_response):
+        """Get AI's next question/response based on user's answer"""
+
+        if session_id not in self.sessions:
+            return {
+                "success": False,
+                "error": "Interview session not found"
+            }
+
+        session = self.sessions[session_id]
+
+        # Add user's response to history
+        session["conversation_history"].append({
+            "role": "user",
+            "content": user_response
+        })
+
+        # Build conversation context for Gemini
+        conversation_context = session["system_prompt"] + "\n\nConversation so far:\n"
+
+        for msg in session["conversation_history"]:
+            role_label = "Candidate" if msg["role"] == "user" else "Interviewer"
+            conversation_context += f"{role_label}: {msg['content']}\n"
+
+        conversation_context += "\nBased on the candidate's last response, provide your next question or comment as the interviewer. Keep it concise (2-3 sentences max). If you've asked enough questions (5-6), you can wrap up the interview."
+
+        # Get AI response using Gemini
+        try:
+            if not self.gemini_client.using_gemini:
+                # Mock response
+                ai_response = "Thank you for sharing that. That's very interesting. Can you tell me more about how you approached that situation?"
+            else:
+                response = self.gemini_client.client.models.generate_content(
+                    model='gemini-2.5-flash',
+                    contents=[conversation_context]
+                )
+                ai_response = response.text
+
+            # Add AI response to history
+            session["conversation_history"].append({
+                "role": "assistant",
+                "content": ai_response
+            })
+
+            session["question_count"] += 1
+            session["current_question"] = ai_response
+
+            return {
+                "success": True,
+                "response": ai_response,
+                "question_count": session["question_count"]
+            }
+
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Failed to generate response: {str(e)}"
+            }
+
+    def get_session(self, session_id):
+        """Get interview session data"""
+        return self.sessions.get(session_id)
+
+
 class GeminiClient:
     """Client for Gemini AI vision and text analysis"""
 
@@ -388,6 +514,127 @@ def gemini_status():
         'configured': configured,
         'message': message
     })
+
+
+# Global interview manager instance
+gemini_client = GeminiClient(GOOGLE_API_KEY)
+interview_manager = InterviewManager(gemini_client)
+
+
+@app.route('/api/interview/start', methods=['POST'])
+def start_interview():
+    """
+    Start a new AI interview session
+
+    Request body:
+        {
+            "sessionId": "call_xxxxx",
+            "interviewType": "general" | "technical" | "behavioral"
+        }
+
+    Returns:
+        {
+            "success": true,
+            "sessionId": "call_xxxxx",
+            "firstQuestion": "...",
+            "interviewType": "general"
+        }
+    """
+    try:
+        data = request.get_json()
+        session_id = data.get('sessionId')
+        interview_type = data.get('interviewType', 'general')
+
+        if not session_id:
+            return jsonify({
+                'success': False,
+                'error': 'sessionId is required'
+            }), 400
+
+        result = interview_manager.start_interview(session_id, interview_type)
+
+        return jsonify({
+            'success': True,
+            **result
+        })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/interview/respond', methods=['POST'])
+def interview_respond():
+    """
+    Get AI's response to user's answer
+
+    Request body:
+        {
+            "sessionId": "call_xxxxx",
+            "userResponse": "My answer to the question..."
+        }
+
+    Returns:
+        {
+            "success": true,
+            "response": "AI's next question or comment",
+            "questionCount": 2
+        }
+    """
+    try:
+        data = request.get_json()
+        session_id = data.get('sessionId')
+        user_response = data.get('userResponse')
+
+        if not session_id or not user_response:
+            return jsonify({
+                'success': False,
+                'error': 'sessionId and userResponse are required'
+            }), 400
+
+        result = interview_manager.get_next_response(session_id, user_response)
+
+        return jsonify(result)
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/interview/session/<session_id>', methods=['GET'])
+def get_interview_session(session_id):
+    """
+    Get interview session data
+
+    Returns:
+        {
+            "success": true,
+            "session": {...}
+        }
+    """
+    try:
+        session = interview_manager.get_session(session_id)
+
+        if not session:
+            return jsonify({
+                'success': False,
+                'error': 'Session not found'
+            }), 404
+
+        return jsonify({
+            'success': True,
+            'session': session
+        })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 
 # Error handlers
