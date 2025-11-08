@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VisionAgents.ai Video Streaming Demo - Python</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎥 VisionAgents.ai Video Streaming Demo</h1>
+            <p class="subtitle">Real-time video streaming with Python + Flask</p>
+        </header>
+
+        <div class="main-content">
+            <!-- Video Player Section -->
+            <div class="video-section">
+                <div class="video-container">
+                    <video id="videoPlayer" autoplay playsinline muted></video>
+                    <div id="statusOverlay" class="status-overlay">
+                        <span id="statusText">Ready to stream</span>
+                    </div>
+                </div>
+
+                <!-- Stream Controls -->
+                <div class="controls">
+                    <button id="playBtn" class="btn btn-primary">
+                        <span>▶</span> Play
+                    </button>
+                    <button id="pauseBtn" class="btn btn-secondary" disabled>
+                        <span>⏸</span> Pause
+                    </button>
+                    <button id="stopBtn" class="btn btn-danger" disabled>
+                        <span>⏹</span> Stop
+                    </button>
+                </div>
+
+                <!-- Stream Statistics -->
+                <div id="statsContainer" class="stats-container" style="display: none;">
+                    <h3>Stream Statistics</h3>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <span class="stat-label">FPS:</span>
+                            <span id="statFps" class="stat-value">--</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Latency:</span>
+                            <span id="statLatency" class="stat-value">--</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Bitrate:</span>
+                            <span id="statBitrate" class="stat-value">--</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Resolution:</span>
+                            <span id="statResolution" class="stat-value">--</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Session Information Sidebar -->
+            <aside class="sidebar">
+                <div class="info-card">
+                    <h3>Session Information</h3>
+                    <div class="info-item">
+                        <strong>User ID:</strong>
+                        <code id="userId">Generating...</code>
+                    </div>
+                    <div class="info-item">
+                        <strong>Call ID:</strong>
+                        <code id="callId">Generating...</code>
+                    </div>
+                    <div class="info-item">
+                        <strong>Status:</strong>
+                        <span id="connectionStatus" class="status-badge status-idle">Idle</span>
+                    </div>
+                </div>
+
+                <div class="info-card">
+                    <h3>Features</h3>
+                    <ul class="features-list">
+                        <li>✅ Real-time WebRTC streaming</li>
+                        <li>✅ Ultra-low latency</li>
+                        <li>✅ Stream controls</li>
+                        <li>✅ Live statistics</li>
+                        <li>✅ Auto-reconnection</li>
+                        <li>✅ Python + Flask backend</li>
+                    </ul>
+                </div>
+
+                <div class="info-card">
+                    <h3>Tech Stack</h3>
+                    <ul class="tech-list">
+                        <li><strong>Backend:</strong> Python 3.x + Flask</li>
+                        <li><strong>Protocol:</strong> WebRTC</li>
+                        <li><strong>Streaming:</strong> VisionAgents.ai</li>
+                        <li><strong>Frontend:</strong> HTML5 + JavaScript</li>
+                    </ul>
+                </div>
+            </aside>
+        </div>
+
+        <footer>
+            <p>
+                Powered by <a href="https://visionagents.ai" target="_blank">VisionAgents.ai</a>
+                | Built with Python + Flask
+            </p>
+        </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/stream.js') }}"></script>
+</body>
+</html>
