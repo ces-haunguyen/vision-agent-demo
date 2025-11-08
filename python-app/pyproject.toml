@@ -6,5 +6,6 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "flask>=3.1.2",
+    "vision-agents-plugins-gemini>=0.1.13",
     "vision-agents[getstream,openai]>=0.1.13",
 ]
